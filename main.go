@@ -7,7 +7,10 @@ import (
 	"log/slog"
 	"os"
 	"os/signal"
+	"time"
 )
+
+const gracefulTimeout = time.Second * 10
 
 func main() {
 	cfg, err := config.NewConfig()
@@ -21,7 +24,7 @@ func main() {
 		signal.Notify(sig, os.Interrupt)
 		<-sig
 
-		ctx, cansel := signal.NotifyContext(context.Background(), os.Interrupt)
+		ctx, cansel := context.WithTimeout(context.Background(), gracefulTimeout)
 		defer cansel()
 
 		if err = srv.Stop(ctx); err != nil {
