@@ -19,6 +19,7 @@ func NewConfig() (*Config, error) {
 }
 
 type Config struct {
+	Local    bool   `env:"LOCAL" envDefault:"false"`
 	LogLevel string `env:"LOG_LEVEL" envDefault:"warn"`
 	Port     int    `env:"PORT" envDefault:"55555"`
 }
