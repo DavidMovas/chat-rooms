@@ -30,6 +30,8 @@ func (s *ChatServer) CreateRoom(_ context.Context, request *chat.CreateRoomReque
 		return nil, fmt.Errorf("failed to create room: %w", err)
 	}
 
+	slog.Info("room created", "room_id", room.ID)
+
 	return &chat.CreateRoomResponse{
 		RoomId: room.ID,
 	}, nil
@@ -45,6 +47,8 @@ func (s *ChatServer) Connect(stream chat.ChatService_ConnectServer) error {
 	if !ok {
 		return fmt.Errorf("failed to receive message: %w", err)
 	}
+
+	slog.Info("connect", "room_id", connectRoom.ConnectRoom.RoomId, "user_id", connectRoom.ConnectRoom.UserId)
 
 	hub, err := s.store.GetRoomHub(connectRoom.ConnectRoom.RoomId)
 	if err != nil {
