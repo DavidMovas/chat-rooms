@@ -15,6 +15,7 @@ import (
 
 type Server struct {
 	cfg        *config.Config
+	listener   net.Listener
 	grpcServer *grpc.Server
 	closers    []func() error
 }
@@ -48,6 +49,7 @@ func (s *Server) Start() error {
 		return fmt.Errorf("failed to listen: %w", err)
 	}
 
+	s.listener = lis
 	s.closers = append(s.closers, lis.Close)
 
 	logger.Info("server started", "port", s.cfg.Port)
@@ -69,6 +71,14 @@ func (s *Server) Stop(ctx context.Context) error {
 	}
 
 	return withClosers(s.closers, nil)
+}
+
+func (s *Server) Port() (int, error) {
+	if s.listener == nil || s.listener.Addr() == nil {
+		return 0, fmt.Errorf("server is not running")
+	}
+
+	return s.listener.Addr().(*net.TCPAddr).Port, nil
 }
 
 func withClosers(closers []func() error, err error) error {
