@@ -19,7 +19,7 @@ const _ = grpc.SupportPackageIsVersion7
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type ChatServiceClient interface {
 	CreateRoom(ctx context.Context, in *CreateRoomRequest, opts ...grpc.CallOption) (*CreateRoomResponse, error)
-	Connect(ctx context.Context, in *ConnectRequest, opts ...grpc.CallOption) (*ConnectResponse, error)
+	Connect(ctx context.Context, opts ...grpc.CallOption) (ChatService_ConnectClient, error)
 }
 
 type chatServiceClient struct {
@@ -32,20 +32,42 @@ func NewChatServiceClient(cc grpc.ClientConnInterface) ChatServiceClient {
 
 func (c *chatServiceClient) CreateRoom(ctx context.Context, in *CreateRoomRequest, opts ...grpc.CallOption) (*CreateRoomResponse, error) {
 	out := new(CreateRoomResponse)
-	err := c.cc.Invoke(ctx, "/chat.v1.ChatService/CreateRoom", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/chat.v2.ChatService/CreateRoom", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-func (c *chatServiceClient) Connect(ctx context.Context, in *ConnectRequest, opts ...grpc.CallOption) (*ConnectResponse, error) {
-	out := new(ConnectResponse)
-	err := c.cc.Invoke(ctx, "/chat.v1.ChatService/Connect", in, out, opts...)
+func (c *chatServiceClient) Connect(ctx context.Context, opts ...grpc.CallOption) (ChatService_ConnectClient, error) {
+	stream, err := c.cc.NewStream(ctx, &ChatService_ServiceDesc.Streams[0], "/chat.v2.ChatService/Connect", opts...)
 	if err != nil {
 		return nil, err
 	}
-	return out, nil
+	x := &chatServiceConnectClient{stream}
+	return x, nil
+}
+
+type ChatService_ConnectClient interface {
+	Send(*ConnectRequest) error
+	Recv() (*ConnectResponse, error)
+	grpc.ClientStream
+}
+
+type chatServiceConnectClient struct {
+	grpc.ClientStream
+}
+
+func (x *chatServiceConnectClient) Send(m *ConnectRequest) error {
+	return x.ClientStream.SendMsg(m)
+}
+
+func (x *chatServiceConnectClient) Recv() (*ConnectResponse, error) {
+	m := new(ConnectResponse)
+	if err := x.ClientStream.RecvMsg(m); err != nil {
+		return nil, err
+	}
+	return m, nil
 }
 
 // ChatServiceServer is the server API for ChatService service.
@@ -53,7 +75,7 @@ func (c *chatServiceClient) Connect(ctx context.Context, in *ConnectRequest, opt
 // for forward compatibility
 type ChatServiceServer interface {
 	CreateRoom(context.Context, *CreateRoomRequest) (*CreateRoomResponse, error)
-	Connect(context.Context, *ConnectRequest) (*ConnectResponse, error)
+	Connect(ChatService_ConnectServer) error
 	mustEmbedUnimplementedChatServiceServer()
 }
 
@@ -64,8 +86,8 @@ type UnimplementedChatServiceServer struct {
 func (UnimplementedChatServiceServer) CreateRoom(context.Context, *CreateRoomRequest) (*CreateRoomResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method CreateRoom not implemented")
 }
-func (UnimplementedChatServiceServer) Connect(context.Context, *ConnectRequest) (*ConnectResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method Connect not implemented")
+func (UnimplementedChatServiceServer) Connect(ChatService_ConnectServer) error {
+	return status.Errorf(codes.Unimplemented, "method Connect not implemented")
 }
 func (UnimplementedChatServiceServer) mustEmbedUnimplementedChatServiceServer() {}
 
@@ -90,7 +112,7 @@ func _ChatService_CreateRoom_Handler(srv interface{}, ctx context.Context, dec f
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/chat.v1.ChatService/CreateRoom",
+		FullMethod: "/chat.v2.ChatService/CreateRoom",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(ChatServiceServer).CreateRoom(ctx, req.(*CreateRoomRequest))
@@ -98,40 +120,51 @@ func _ChatService_CreateRoom_Handler(srv interface{}, ctx context.Context, dec f
 	return interceptor(ctx, in, info, handler)
 }
 
-func _ChatService_Connect_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(ConnectRequest)
-	if err := dec(in); err != nil {
+func _ChatService_Connect_Handler(srv interface{}, stream grpc.ServerStream) error {
+	return srv.(ChatServiceServer).Connect(&chatServiceConnectServer{stream})
+}
+
+type ChatService_ConnectServer interface {
+	Send(*ConnectResponse) error
+	Recv() (*ConnectRequest, error)
+	grpc.ServerStream
+}
+
+type chatServiceConnectServer struct {
+	grpc.ServerStream
+}
+
+func (x *chatServiceConnectServer) Send(m *ConnectResponse) error {
+	return x.ServerStream.SendMsg(m)
+}
+
+func (x *chatServiceConnectServer) Recv() (*ConnectRequest, error) {
+	m := new(ConnectRequest)
+	if err := x.ServerStream.RecvMsg(m); err != nil {
 		return nil, err
 	}
-	if interceptor == nil {
-		return srv.(ChatServiceServer).Connect(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/chat.v1.ChatService/Connect",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ChatServiceServer).Connect(ctx, req.(*ConnectRequest))
-	}
-	return interceptor(ctx, in, info, handler)
+	return m, nil
 }
 
 // ChatService_ServiceDesc is the grpc.ServiceDesc for ChatService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
 var ChatService_ServiceDesc = grpc.ServiceDesc{
-	ServiceName: "chat.v1.ChatService",
+	ServiceName: "chat.v2.ChatService",
 	HandlerType: (*ChatServiceServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{
 			MethodName: "CreateRoom",
 			Handler:    _ChatService_CreateRoom_Handler,
 		},
+	},
+	Streams: []grpc.StreamDesc{
 		{
-			MethodName: "Connect",
-			Handler:    _ChatService_Connect_Handler,
+			StreamName:    "Connect",
+			Handler:       _ChatService_Connect_Handler,
+			ServerStreams: true,
+			ClientStreams: true,
 		},
 	},
-	Streams:  []grpc.StreamDesc{},
 	Metadata: "chat.proto",
 }

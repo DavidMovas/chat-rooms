@@ -1,6 +1,6 @@
 syntax = "proto3";
 
-package chat.v1;
+package chat.v2;
 
 option go_package = "./chat";
 
@@ -8,7 +8,7 @@ import "google/protobuf/timestamp.proto";
 
 service ChatService {
   rpc CreateRoom(CreateRoomRequest) returns (CreateRoomResponse);
-  rpc Connect(ConnectRequest) returns (ConnectResponse);
+  rpc Connect(stream ConnectRequest) returns (stream ConnectResponse);
 }
 
 message CreateRoomRequest {
@@ -23,13 +23,17 @@ message CreateRoomResponse {
 message ConnectRequest {
   oneof payload {
     ConnectRoom connect_room = 1;
-    Message message = 2;
+    SendMessage send_message = 2;
   }
 
   message ConnectRoom {
     string room_id = 1;
     string user_id = 2;
     string last_read_message_id = 3;
+  }
+
+  message SendMessage {
+    string text = 1;
   }
 }
 
