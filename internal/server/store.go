@@ -61,7 +61,7 @@ func (s *Store) addRoom(room *Room) {
 }
 
 func (s *Store) getOrCreateRoomHub(room *Room) (*RoomHub, error) {
-	s.roomHubMx.Lock()
+	s.roomHubMx.RLock()
 	hub := s.roomHub[room.ID]
 	s.roomHubMx.RUnlock()
 

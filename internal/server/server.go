@@ -44,16 +44,15 @@ func (s *Server) Start() error {
 
 	slog.SetDefault(logger)
 
-	lis, err := net.Listen("tcp", fmt.Sprintf(":%d", s.cfg.Port))
+	s.listener, err = net.Listen("tcp", fmt.Sprintf(":%d", s.cfg.Port))
 	if err != nil {
 		return fmt.Errorf("failed to listen: %w", err)
 	}
 
-	s.listener = lis
-	s.closers = append(s.closers, lis.Close)
+	s.closers = append(s.closers, s.listener.Close)
 
 	logger.Info("server started", "port", s.cfg.Port)
-	return s.grpcServer.Serve(lis)
+	return s.grpcServer.Serve(s.listener)
 }
 
 func (s *Server) Stop(ctx context.Context) error {
