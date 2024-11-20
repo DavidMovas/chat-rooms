@@ -1,14 +1,16 @@
 package server
 
 import (
+	"context"
+	"encoding/json"
 	"fmt"
 	"github.com/google/uuid"
+	"github.com/redis/go-redis/v9"
 	"sync"
 )
 
 type Store struct {
-	rooms   map[string]*Room
-	roomsMx sync.RWMutex
+	rdb *redis.Client
 
 	roomHub   map[string]*RoomHub
 	roomHubMx sync.RWMutex
@@ -17,47 +19,46 @@ type Store struct {
 	messagesMx sync.RWMutex
 }
 
-func NewStorage() *Store {
+func NewStorage(rdb *redis.Client) *Store {
 	return &Store{
-		rooms:    make(map[string]*Room),
+		rdb:      rdb,
 		roomHub:  make(map[string]*RoomHub),
 		messages: make(map[string][]*Message),
 	}
 }
 
-func (s *Store) CreateRoom(userID string, name string) (*Room, error) {
+func (s *Store) CreateRoom(ctx context.Context, userID string, name string) (*Room, error) {
 	room := &Room{
-		ID:      uuid.New().String(),
+		ID:      fmt.Sprintf("room:%s:info", uuid.New().String()),
 		OwnerID: userID,
 		Name:    name,
 	}
 
-	s.addRoom(room)
+	bytes, err := json.Marshal(room)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal room: %w", err)
+	}
+
+	res := s.rdb.Set(ctx, room.ID, string(bytes), 0).Err()
+	if res != nil {
+		return nil, fmt.Errorf("failed to create room: %w", res)
+	}
 
 	return room, nil
 }
 
-func (s *Store) GetRoomHub(roomID string) (*RoomHub, error) {
-	room := s.getRoom(roomID)
-	if room == nil {
-		return nil, fmt.Errorf("room not found")
+func (s *Store) GetRoomHub(ctx context.Context, roomID string) (*RoomHub, error) {
+	res, err := s.rdb.Get(ctx, roomID).Result()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get room: %w", err)
+	}
+
+	var room *Room
+	if err = json.Unmarshal([]byte(res), room); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal room: %w", err)
 	}
 
 	return s.getOrCreateRoomHub(room)
-}
-
-func (s *Store) getRoom(roomID string) *Room {
-	s.roomsMx.RLock()
-	defer s.roomsMx.RUnlock()
-
-	return s.rooms[roomID]
-}
-
-func (s *Store) addRoom(room *Room) {
-	s.roomsMx.Lock()
-	defer s.roomsMx.Unlock()
-
-	s.rooms[room.ID] = room
 }
 
 func (s *Store) getOrCreateRoomHub(room *Room) (*RoomHub, error) {
@@ -107,94 +108,4 @@ type Room struct {
 	ID      string
 	OwnerID string
 	Name    string
-}
-
-type RoomHub struct {
-	room         *Room
-	store        *Store
-	mx           sync.RWMutex
-	messages     []*Message
-	userChannels map[string]chan *Message
-}
-
-func NewRoomHub(room *Room, store *Store) (*RoomHub, error) {
-	messages, err := store.loadMessages(room.ID)
-	if err != nil {
-		return nil, fmt.Errorf("failed to load messages: %w", err)
-	}
-
-	return &RoomHub{
-		room:         room,
-		store:        store,
-		messages:     messages,
-		userChannels: make(map[string]chan *Message),
-	}, nil
-}
-
-func (h *RoomHub) Connect(userID string, lastReadMessageID string) *Connection {
-	h.mx.Lock()
-	defer h.mx.Unlock()
-
-	connection := &Connection{
-		UserID:     userID,
-		RoomID:     h.room.ID,
-		Unread:     h.getUnreadMessages(lastReadMessageID),
-		MessagesCh: make(chan *Message, 4),
-		Disconnect: func() {
-			h.disconnect(userID)
-		},
-	}
-
-	h.userChannels[userID] = connection.MessagesCh
-
-	return connection
-}
-
-func (h *RoomHub) ReceiveMessage(message *Message) error {
-	if err := h.store.saveMessage(message); err != nil {
-		return fmt.Errorf("failed to save message: %w", err)
-	}
-
-	h.mx.RLock()
-	defer h.mx.RUnlock()
-
-	h.messages = append(h.messages, message)
-
-	for _, ch := range h.userChannels {
-		ch <- message
-	}
-
-	return nil
-}
-
-func (h *RoomHub) getUnreadMessages(lastReadMessageID string) []*Message {
-	if lastReadMessageID == "" {
-		return h.messages
-	}
-
-	i := len(h.messages) - 1
-	for ; i >= 0 && h.messages[i].ID > lastReadMessageID; i-- {
-		// empty
-	}
-
-	return h.messages[i+1:]
-}
-
-func (h *RoomHub) disconnect(userID string) {
-	h.mx.Lock()
-	defer h.mx.Unlock()
-
-	ch := h.userChannels[userID]
-	if ch != nil {
-		close(ch)
-		delete(h.userChannels, userID)
-	}
-}
-
-type Connection struct {
-	UserID     string
-	RoomID     string
-	Unread     []*Message
-	MessagesCh chan *Message
-	Disconnect func()
 }
