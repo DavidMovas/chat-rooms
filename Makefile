@@ -15,3 +15,16 @@ redis-up:
 
 redis-down:
 	docker rm -f chat-rooms-redis
+
+go-fmt:
+	 gofumpt -l -w .
+
+go-lint:
+	golangci-lint run ./...
+
+before-push:
+	go mod tidy && \
+	gofumpt -l -w . && \
+	go build ./... && \
+	golangci-lint run ./... && \
+	go test ./integration_tests/...

@@ -1,0 +1,50 @@
+name: Go Integration Tests
+
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+    branches:
+      - master
+
+jobs:
+
+  build-and-test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: '1.23'
+
+      - name: Ensure go mod tidy has zero output
+        run: go mod tidy -v && git diff --exit-code
+
+      - name: Esure gofumpt has zero output
+        run: |
+          go install mvdan.cc/gofumpt@latest
+          gofumpt -l -w .
+          git diff --exit-code
+
+      - name: golangci-lint
+        uses: golangci/golangci-lint-action@v3
+        with:
+          version: latest
+          skip-pkg-cache: true
+          args: --issues-exit-code=0
+
+      - name: Build
+        run: go build -v ./...
+
+      - name: Run integration integration_tests
+        run: go test -v ./integration_tests/ -coverprofile=coverage.out
+
+      - name: Upload results to Codecov
+        uses: codecov/codecov-action@v4
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}

@@ -4,6 +4,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"sync"
+	"testing"
+	"time"
+
 	"github.com/DavidMovas/chat-rooms/apis/chat"
 	"github.com/DavidMovas/chat-rooms/internal/config"
 	"github.com/DavidMovas/chat-rooms/internal/server"
@@ -15,9 +19,6 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/status"
-	"sync"
-	"testing"
-	"time"
 )
 
 func TestServer(t *testing.T) {
@@ -152,7 +153,6 @@ func (c *RoomClient) CreateRoom(ctx context.Context, name string) (string, error
 		UserId: c.userID,
 		Name:   name,
 	})
-
 	if err != nil {
 		return "", err
 	}
@@ -175,7 +175,6 @@ func (c *RoomClient) Connect(ctx context.Context, roomID string) error {
 			},
 		},
 	})
-
 	if err != nil {
 		return fmt.Errorf("failed to connect: %w", err)
 	}

@@ -4,15 +4,15 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
+	"net"
+
 	"github.com/DavidMovas/chat-rooms/apis/chat"
 	"github.com/DavidMovas/chat-rooms/internal/config"
 	"github.com/DavidMovas/chat-rooms/internal/log"
 	"github.com/redis/go-redis/v9"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
-	"log/slog"
-	"net"
-	"time"
 )
 
 type Server struct {
@@ -94,10 +94,4 @@ func withClosers(closers []func() error, err error) error {
 	}
 
 	return errors.Join(errs...)
-}
-
-func shortContext() context.Context {
-	ctx, f := context.WithTimeout(context.Background(), time.Second)
-	_ = f
-	return ctx
 }
