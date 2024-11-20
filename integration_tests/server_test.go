@@ -8,6 +8,7 @@ import (
 	"github.com/DavidMovas/chat-rooms/internal/config"
 	"github.com/DavidMovas/chat-rooms/internal/server"
 	"github.com/hashicorp/consul/sdk/testutil/retry"
+	"github.com/redis/go-redis/v9"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc"
@@ -28,9 +29,22 @@ func runServer(t *testing.T) {
 		Port:     0,
 		Local:    true,
 		LogLevel: "info",
+		RedisURL: "localhost:6379",
 	}
 
-	srv, err := server.NewServer(cfg)
+	rdb := redis.NewClient(&redis.Options{
+		Addr: cfg.RedisURL,
+	})
+
+	if err := rdb.Ping(shortCallCtx()).Err(); err != nil {
+		require.NoError(t, err)
+	}
+
+	defer func() {
+		_ = rdb.Close()
+	}()
+
+	srv, err := server.NewServer(cfg, rdb)
 	require.NoError(t, err)
 
 	go func() {

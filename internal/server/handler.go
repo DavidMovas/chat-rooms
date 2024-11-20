@@ -14,7 +14,7 @@ var _ chat.ChatServiceServer = (*ChatServer)(nil)
 type ChatServer struct {
 	store *Store
 
-	// UnimplementedChatServiceServer must be embedded to have forward compatible implementations.
+	// UnimplementedChatServiceServer must be embedded to have forwarded compatible implementations.
 	chat.UnimplementedChatServiceServer
 }
 
@@ -24,8 +24,8 @@ func NewChatServer(store *Store) *ChatServer {
 	}
 }
 
-func (s *ChatServer) CreateRoom(_ context.Context, request *chat.CreateRoomRequest) (*chat.CreateRoomResponse, error) {
-	room, err := s.store.CreateRoom(request.UserId, request.Name)
+func (s *ChatServer) CreateRoom(ctx context.Context, request *chat.CreateRoomRequest) (*chat.CreateRoomResponse, error) {
+	room, err := s.store.CreateRoom(ctx, request.UserId, request.Name)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create room: %w", err)
 	}
@@ -50,7 +50,7 @@ func (s *ChatServer) Connect(stream chat.ChatService_ConnectServer) error {
 
 	slog.Info("connect", "room_id", connectRoom.ConnectRoom.RoomId, "user_id", connectRoom.ConnectRoom.UserId)
 
-	hub, err := s.store.GetRoomHub(connectRoom.ConnectRoom.RoomId)
+	hub, err := s.store.GetRoomHub(stream.Context(), connectRoom.ConnectRoom.RoomId)
 	if err != nil {
 		return fmt.Errorf("failed to get room hub: %w", err)
 	}

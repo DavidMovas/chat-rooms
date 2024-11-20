@@ -1,7 +1,3 @@
-# Variables
-include .env
-PORT := $(shell grep -E '^PORT=' .env | cut -d '=' -f2)
-
 # Protocol Buffer Compiler
 proto-gen:
 	protoc -I ./apis --go_out=apis --go-grpc_out=apis chat.proto
@@ -13,5 +9,9 @@ gui-help:
 gui-web:
 	grpcui -plaintext localhost:50000
 
-port:
-	echo "Переменная JWT_SECRET равна $(PORT)"
+# Docker Redis
+redis-up:
+	docker run -d --name chat-rooms-redis -p 6379:6379 redis
+
+redis-down:
+	docker rm -f chat-rooms-redis
