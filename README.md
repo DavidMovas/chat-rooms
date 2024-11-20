@@ -1,5 +1,3 @@
-# Chat Rooms
-
 <div align="center">
   
   [![go.mod Go version](https://img.shields.io/badge/Go-v1.23.0-blue)](https://github.com/DavidMovas/chat-rooms)
@@ -10,3 +8,5 @@
   [![License](https://img.shields.io/badge/license-Apache%20License%202.0-E91E63.svg?style=flat-square)](LICENSE)
   
 </div>
+
+# Chat Rooms
