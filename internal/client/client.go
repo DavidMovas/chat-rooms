@@ -5,21 +5,31 @@ import (
 	"errors"
 	"fmt"
 	"github.com/DavidMovas/chat-rooms/apis/chat"
+	"github.com/DavidMovas/chat-rooms/internal/config"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
+	"io"
 	"math/rand"
 	"sync"
 	"time"
 )
 
+const clientsAmount = 15
+
 func main() {
-	addr := "localhost:50000"
+	cfg := &config.Config{
+		Port:     50000,
+		Local:    true,
+		LogLevel: "info",
+		RedisURL: "localhost:6379",
+	}
+
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*60)
 	defer cancel()
 
 	var users []*user
-	for i := 0; i < 5; i++ {
-		c, err := grpc.NewClient(addr, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	for i := 0; i < clientsAmount; i++ {
+		c, err := grpc.NewClient(fmt.Sprintf("localhost:%d", cfg.Port), grpc.WithTransportCredentials(insecure.NewCredentials()))
 		if err != nil {
 			panic(err)
 		}
@@ -40,15 +50,15 @@ func main() {
 
 	fmt.Printf("room created: %s\n", roomID)
 
-	w := sync.WaitGroup{}
-
+	var wg sync.WaitGroup
 	var errs []error
-	for _, u := range users {
-		w.Add(1)
-		u.roomId = roomID
 
+	for _, u := range users {
+		wg.Add(1)
+		u.roomId = roomID
+		var err error
 		go func(u *user) {
-			if err := u.connect(ctx, &w); err != nil {
+			if err = u.connect(ctx, &wg); err != nil {
 				errs = append(errs, err)
 			}
 
@@ -56,7 +66,7 @@ func main() {
 		}(u)
 	}
 
-	w.Wait()
+	wg.Wait()
 	fmt.Printf("all users connected\n")
 
 	if len(errs) > 0 {
@@ -65,13 +75,12 @@ func main() {
 
 	fmt.Printf("communicating\n")
 
-	wg := sync.WaitGroup{}
-
 	for _, u := range users {
 		wg.Add(1)
 		go func(u *user) {
-			if err := u.communicate(ctx, &wg); err != nil {
-				if !errors.Is(err, context.Canceled) {
+			var err error
+			if err = u.communicate(ctx, &wg); err != nil {
+				if !errors.Is(err, context.Canceled) || err != io.EOF {
 					panic(err)
 				}
 			}
@@ -79,6 +88,8 @@ func main() {
 	}
 
 	wg.Wait()
+
+	fmt.Println("all users disconnected")
 }
 
 type user struct {

@@ -21,7 +21,7 @@ func main() {
 		Addr: cfg.RedisURL,
 	})
 
-	if cmd := rdb.Ping(shortContext()); cmd.Err() == nil {
+	if cmd := rdb.Ping(shortContext()); cmd.Err() != nil {
 		slog.Error("failed to connect to redis", "error", cmd.Err())
 		os.Exit(1)
 	}
@@ -60,3 +60,10 @@ func shortContext() context.Context {
 	_ = f
 	return ctx
 }
+
+// config RedisURL
+// integrations_tests
+// server.New, don't forget about closers
+// store roomInfo in Redis. JSON. room:id:info
+// * use context (from stream) server.Context()
+// ** add CI (github actions)

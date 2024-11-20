@@ -39,9 +39,9 @@ func (s *Store) CreateRoom(ctx context.Context, userID string, name string) (*Ro
 		return nil, fmt.Errorf("failed to marshal room: %w", err)
 	}
 
-	res := s.rdb.Set(ctx, room.ID, string(bytes), 0).Err()
-	if res != nil {
-		return nil, fmt.Errorf("failed to create room: %w", res)
+	err = s.rdb.Set(ctx, room.ID, string(bytes), 0).Err()
+	if err != nil {
+		return nil, fmt.Errorf("failed to create room: %w", err)
 	}
 
 	return room, nil
@@ -54,7 +54,7 @@ func (s *Store) GetRoomHub(ctx context.Context, roomID string) (*RoomHub, error)
 	}
 
 	var room *Room
-	if err = json.Unmarshal([]byte(res), room); err != nil {
+	if err = json.Unmarshal([]byte(res), &room); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal room: %w", err)
 	}
 
