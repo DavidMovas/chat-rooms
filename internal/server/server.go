@@ -7,23 +7,26 @@ import (
 	"github.com/DavidMovas/chat-rooms/apis/chat"
 	"github.com/DavidMovas/chat-rooms/internal/config"
 	"github.com/DavidMovas/chat-rooms/internal/log"
+	"github.com/redis/go-redis/v9"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
 	"log/slog"
 	"net"
+	"time"
 )
 
 type Server struct {
 	cfg        *config.Config
+	rdb        *redis.Client
 	listener   net.Listener
 	grpcServer *grpc.Server
 	closers    []func() error
 }
 
-func NewServer(cfg *config.Config) (*Server, error) {
+func NewServer(cfg *config.Config, rdb *redis.Client) (*Server, error) {
 	grpcServer := grpc.NewServer()
 
-	s := NewStorage()
+	s := NewStorage(rdb)
 	h := NewChatServer(s)
 	chat.RegisterChatServiceServer(grpcServer, h)
 	if cfg.Local {
@@ -33,6 +36,7 @@ func NewServer(cfg *config.Config) (*Server, error) {
 	return &Server{
 		cfg:        cfg,
 		grpcServer: grpcServer,
+		rdb:        rdb,
 	}, nil
 }
 
@@ -49,7 +53,7 @@ func (s *Server) Start() error {
 		return fmt.Errorf("failed to listen: %w", err)
 	}
 
-	s.closers = append(s.closers, s.listener.Close)
+	s.closers = append(s.closers, s.listener.Close, s.rdb.Close)
 
 	logger.Info("server started", "port", s.cfg.Port)
 	return s.grpcServer.Serve(s.listener)
@@ -90,4 +94,10 @@ func withClosers(closers []func() error, err error) error {
 	}
 
 	return errors.Join(errs...)
+}
+
+func shortContext() context.Context {
+	ctx, f := context.WithTimeout(context.Background(), time.Second)
+	_ = f
+	return ctx
 }

@@ -4,6 +4,7 @@ import (
 	"context"
 	"github.com/DavidMovas/chat-rooms/internal/config"
 	"github.com/DavidMovas/chat-rooms/internal/server"
+	"github.com/redis/go-redis/v9"
 	"log/slog"
 	"os"
 	"os/signal"
@@ -16,7 +17,16 @@ func main() {
 	cfg, err := config.NewConfig()
 	failOrError(err, "failed to load config")
 
-	srv, err := server.NewServer(cfg)
+	rdb := redis.NewClient(&redis.Options{
+		Addr: cfg.RedisURL,
+	})
+
+	if cmd := rdb.Ping(shortContext()); cmd.Err() == nil {
+		slog.Error("failed to connect to redis", "error", cmd.Err())
+		os.Exit(1)
+	}
+
+	srv, err := server.NewServer(cfg, rdb)
 	failOrError(err, "failed to create server")
 
 	go func() {
@@ -43,4 +53,10 @@ func failOrError(err error, msg string) {
 		slog.Error(msg, "error", err)
 		os.Exit(1)
 	}
+}
+
+func shortContext() context.Context {
+	ctx, f := context.WithTimeout(context.Background(), time.Second)
+	_ = f
+	return ctx
 }
