@@ -50,7 +50,7 @@ func (s *ChatServer) Connect(stream chat.ChatService_ConnectServer) error {
 
 	slog.Info("connect", "room_id", connectRoom.ConnectRoom.RoomId, "user_id", connectRoom.ConnectRoom.UserId)
 
-	hub, err := s.store.GetRoomHub(connectRoom.ConnectRoom.RoomId)
+	hub, err := s.store.GetRoomHub(stream.Context(), connectRoom.ConnectRoom.RoomId)
 	if err != nil {
 		return fmt.Errorf("failed to get room hub: %w", err)
 	}
