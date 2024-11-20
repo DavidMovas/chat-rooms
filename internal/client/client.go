@@ -56,7 +56,7 @@ func main() {
 
 	for _, u := range users {
 		wg.Add(1)
-		u.roomId = roomID
+		u.roomID = roomID
 		var err error
 		go func(u *user) {
 			if err = u.connect(ctx, &wg); err != nil {
@@ -96,7 +96,7 @@ func main() {
 type user struct {
 	id     string
 	name   string
-	roomId string
+	roomID string
 	client chat.ChatServiceClient
 	stream chat.ChatService_ConnectClient
 
@@ -127,7 +127,7 @@ func (u *user) connect(ctx context.Context, w *sync.WaitGroup) error {
 	err = u.stream.Send(&chat.ConnectRequest{
 		Payload: &chat.ConnectRequest_ConnectRoom_{
 			ConnectRoom: &chat.ConnectRequest_ConnectRoom{
-				RoomId:            u.roomId,
+				RoomId:            u.roomID,
 				UserId:            u.id,
 				LastReadMessageId: "",
 			},

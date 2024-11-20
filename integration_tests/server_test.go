@@ -1,4 +1,4 @@
-package integration_tests
+package tests
 
 import (
 	"context"
@@ -22,15 +22,15 @@ import (
 )
 
 func TestServer(t *testing.T) {
-	runServer(t)
+	prepareInfrastructure(t, runServer)
 }
 
-func runServer(t *testing.T) {
+func runServer(t *testing.T, redisConn string) {
 	cfg := &config.Config{
 		Port:     0,
 		Local:    true,
 		LogLevel: "info",
-		RedisURL: "localhost:6379",
+		RedisURL: redisConn,
 	}
 
 	rdb := redis.NewClient(&redis.Options{
@@ -66,7 +66,7 @@ func runServer(t *testing.T) {
 }
 
 func tests(t *testing.T, port int) {
-	t.Logf("starting tests on port %d", port)
+	t.Logf("starting integration_tests on port %d", port)
 
 	addr := fmt.Sprintf("localhost:%d", port)
 

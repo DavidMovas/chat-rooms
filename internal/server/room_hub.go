@@ -69,9 +69,6 @@ func (h *RoomHub) getUnreadMessages(lastReadMessageID string) []*Message {
 	}
 
 	i := len(h.messages) - 1
-	for ; i >= 0 && h.messages[i].ID > lastReadMessageID; i-- {
-		// empty
-	}
 
 	return h.messages[i+1:]
 }
