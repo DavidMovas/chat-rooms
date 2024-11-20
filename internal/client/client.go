@@ -4,14 +4,15 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/DavidMovas/chat-rooms/apis/chat"
-	"github.com/DavidMovas/chat-rooms/internal/config"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
 	"io"
 	"math/rand"
 	"sync"
 	"time"
+
+	"github.com/DavidMovas/chat-rooms/apis/chat"
+	"github.com/DavidMovas/chat-rooms/internal/config"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 )
 
 const clientsAmount = 15
@@ -107,7 +108,6 @@ func (u *user) createRoom() (string, error) {
 		UserId: u.id,
 		Name:   "room-1",
 	})
-
 	if err != nil {
 		return "", err
 	}
@@ -133,7 +133,6 @@ func (u *user) connect(ctx context.Context, w *sync.WaitGroup) error {
 			},
 		},
 	})
-
 	if err != nil {
 		return err
 	}
@@ -180,25 +179,18 @@ func (u *user) communicate(ctx context.Context, wg *sync.WaitGroup) error {
 		err = u.receiveMessage(ctx)
 	}()
 
-	for {
-		select {
-		case <-ctx.Done():
-			return err
-		}
-	}
+	<-ctx.Done()
+	return err
 }
 
 func (u *user) sendMessage(ctx context.Context) error {
-	var err error
-
 	for {
-		if ctx.Err() != nil {
-			return ctx.Err()
-		}
-
 		select {
+		case <-ctx.Done():
+			return ctx.Err()
+
 		case <-u.ticker.C:
-			err = u.stream.Send(&chat.ConnectRequest{
+			err := u.stream.Send(&chat.ConnectRequest{
 				Payload: &chat.ConnectRequest_SendMessage_{
 					SendMessage: &chat.ConnectRequest_SendMessage{
 						Text: "Hello world!",

@@ -2,13 +2,14 @@ package main
 
 import (
 	"context"
-	"github.com/DavidMovas/chat-rooms/internal/config"
-	"github.com/DavidMovas/chat-rooms/internal/server"
-	"github.com/redis/go-redis/v9"
 	"log/slog"
 	"os"
 	"os/signal"
 	"time"
+
+	"github.com/DavidMovas/chat-rooms/internal/config"
+	"github.com/DavidMovas/chat-rooms/internal/server"
+	"github.com/redis/go-redis/v9"
 )
 
 const gracefulTimeout = time.Second * 10
@@ -60,10 +61,3 @@ func shortContext() context.Context {
 	_ = f
 	return ctx
 }
-
-// config RedisURL
-// integrations_tests
-// server.New, don't forget about closers
-// store roomInfo in Redis. JSON. room:id:info
-// * use context (from stream) server.Context()
-// ** add CI (github actions)

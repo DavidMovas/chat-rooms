@@ -3,10 +3,11 @@ package server
 import (
 	"context"
 	"fmt"
-	"github.com/DavidMovas/chat-rooms/apis/chat"
 	"io"
 	"log/slog"
 	"time"
+
+	"github.com/DavidMovas/chat-rooms/apis/chat"
 )
 
 var _ chat.ChatServiceServer = (*ChatServer)(nil)
