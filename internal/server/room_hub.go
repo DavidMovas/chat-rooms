@@ -27,14 +27,14 @@ func NewRoomHub(room *Room, store *Store) (*RoomHub, error) {
 	}, nil
 }
 
-func (h *RoomHub) Connect(userID string, lastReadMessageID string) *Connection {
+func (h *RoomHub) Connect(userID string, lastReadMessageNumber int64) *Connection {
 	h.mx.Lock()
 	defer h.mx.Unlock()
 
 	connection := &Connection{
 		UserID:     userID,
 		RoomID:     h.room.ID,
-		Unread:     h.getUnreadMessages(lastReadMessageID),
+		Unread:     h.getUnreadMessages(lastReadMessageNumber),
 		MessagesCh: make(chan *Message, 4),
 		Disconnect: func() {
 			h.disconnect(userID)
@@ -63,8 +63,8 @@ func (h *RoomHub) ReceiveMessage(message *Message) error {
 	return nil
 }
 
-func (h *RoomHub) getUnreadMessages(lastReadMessageID string) []*Message {
-	if lastReadMessageID == "" {
+func (h *RoomHub) getUnreadMessages(lastReadMessageNumber int64) []*Message {
+	if lastReadMessageNumber <= -1 {
 		return h.messages
 	}
 

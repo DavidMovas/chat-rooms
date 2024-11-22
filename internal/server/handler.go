@@ -56,7 +56,7 @@ func (s *ChatServer) Connect(stream chat.ChatService_ConnectServer) error {
 		return fmt.Errorf("failed to get room hub: %w", err)
 	}
 
-	connection := hub.Connect(connectRoom.ConnectRoom.UserId, connectRoom.ConnectRoom.LastReadMessageId)
+	connection := hub.Connect(connectRoom.ConnectRoom.UserId, connectRoom.ConnectRoom.LastReadMessageNumber)
 	defer connection.Disconnect()
 
 	if err = stream.Send(&chat.ConnectResponse{
