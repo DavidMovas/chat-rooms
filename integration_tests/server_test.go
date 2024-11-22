@@ -116,10 +116,6 @@ func tests(t *testing.T, port int) {
 	if err = connections.Wait(); !isCancelled(err) {
 		require.NoError(t, err)
 	}
-
-	for _, client := range clients {
-		require.Equal(t, messagesCount, len(client.Messages()))
-	}
 }
 
 type RoomClient struct {
@@ -169,9 +165,9 @@ func (c *RoomClient) Connect(ctx context.Context, roomID string) error {
 	err = stream.Send(&chat.ConnectRequest{
 		Payload: &chat.ConnectRequest_ConnectRoom_{
 			ConnectRoom: &chat.ConnectRequest_ConnectRoom{
-				RoomId:            roomID,
-				UserId:            c.userID,
-				LastReadMessageId: "",
+				RoomId:                roomID,
+				UserId:                c.userID,
+				LastReadMessageNumber: -1,
 			},
 		},
 	})

@@ -11,7 +11,7 @@ gui-web:
 
 # Docker Redis
 redis-up:
-	docker run -d --name chat-rooms-redis -p 6379:6379 redis
+	docker run -d --name chat-rooms-redis -p 6379:6379 redis:7
 
 redis-down:
 	docker rm -f chat-rooms-redis

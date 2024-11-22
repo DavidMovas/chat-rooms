@@ -7,7 +7,7 @@ import (
 
 func mapToAPIMessage(m *Message) *chat.Message {
 	return &chat.Message{
-		Id:        m.ID,
+		Number:    int64(m.Number),
 		RoomId:    m.RoomID,
 		UserId:    m.UserID,
 		Text:      m.Text,

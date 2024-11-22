@@ -39,6 +39,8 @@ func (s *ChatServer) CreateRoom(ctx context.Context, request *chat.CreateRoomReq
 }
 
 func (s *ChatServer) Connect(stream chat.ChatService_ConnectServer) error {
+	ctx := stream.Context()
+
 	in, err := stream.Recv()
 	if err != nil {
 		return fmt.Errorf("failed to receive message: %w", err)
@@ -98,7 +100,7 @@ func (s *ChatServer) Connect(stream chat.ChatService_ConnectServer) error {
 				Text:      p.SendMessage.Text,
 				CreatedAt: time.Now(),
 			}
-			if err = hub.ReceiveMessage(msg); err != nil {
+			if err = hub.ReceiveMessage(ctx, msg); err != nil {
 				return fmt.Errorf("failed to receive message: %w", err)
 			}
 		default:

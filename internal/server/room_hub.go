@@ -1,20 +1,24 @@
 package server
 
 import (
+	"context"
 	"fmt"
 	"sync"
 )
 
 type RoomHub struct {
-	room         *Room
-	store        *Store
-	mx           sync.RWMutex
+	room  *Room
+	store *Store
+	mx    sync.RWMutex
+
+	lastNumber   int
+	messagesMx   sync.RWMutex
 	messages     []*Message
 	userChannels map[string]chan *Message
 }
 
-func NewRoomHub(room *Room, store *Store) (*RoomHub, error) {
-	messages, err := store.loadMessages(room.ID)
+func newRoomHub(ctx context.Context, room *Room, store *Store) (*RoomHub, error) {
+	messages, lastNumber, err := store.LoadMessages(ctx, room.ID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to load messages: %w", err)
 	}
@@ -22,6 +26,7 @@ func NewRoomHub(room *Room, store *Store) (*RoomHub, error) {
 	return &RoomHub{
 		room:         room,
 		store:        store,
+		lastNumber:   lastNumber,
 		messages:     messages,
 		userChannels: make(map[string]chan *Message),
 	}, nil
@@ -46,8 +51,8 @@ func (h *RoomHub) Connect(userID string, lastReadMessageNumber int64) *Connectio
 	return connection
 }
 
-func (h *RoomHub) ReceiveMessage(message *Message) error {
-	if err := h.store.saveMessage(message); err != nil {
+func (h *RoomHub) ReceiveMessage(ctx context.Context, message *Message) error {
+	if err := h.saveMessage(ctx, message); err != nil {
 		return fmt.Errorf("failed to save message: %w", err)
 	}
 
@@ -59,6 +64,21 @@ func (h *RoomHub) ReceiveMessage(message *Message) error {
 	for _, ch := range h.userChannels {
 		ch <- message
 	}
+
+	return nil
+}
+
+func (h *RoomHub) saveMessage(ctx context.Context, message *Message) error {
+	h.messagesMx.Lock()
+	defer h.messagesMx.Unlock()
+
+	message.Number = h.lastNumber + 1
+	if err := h.store.SaveMessage(ctx, message); err != nil {
+		return fmt.Errorf("failed to save message: %w", err)
+	}
+
+	h.messages = append(h.messages, message)
+	h.lastNumber++
 
 	return nil
 }

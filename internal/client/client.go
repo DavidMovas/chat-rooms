@@ -49,6 +49,8 @@ func main() {
 		panic(err)
 	}
 
+	//roomID := "2e6cd80c-2571-421a-b7f8-464a8b5a7452"
+
 	fmt.Printf("room created: %s\n", roomID)
 
 	var wg sync.WaitGroup
@@ -75,6 +77,8 @@ func main() {
 	}
 
 	fmt.Printf("communicating\n")
+
+	wg = sync.WaitGroup{}
 
 	for _, u := range users {
 		wg.Add(1)
@@ -127,9 +131,9 @@ func (u *user) connect(ctx context.Context, w *sync.WaitGroup) error {
 	err = u.stream.Send(&chat.ConnectRequest{
 		Payload: &chat.ConnectRequest_ConnectRoom_{
 			ConnectRoom: &chat.ConnectRequest_ConnectRoom{
-				RoomId:            u.roomID,
-				UserId:            u.id,
-				LastReadMessageId: "",
+				RoomId:                u.roomID,
+				UserId:                u.id,
+				LastReadMessageNumber: -1,
 			},
 		},
 	})
