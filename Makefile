@@ -16,12 +16,14 @@ redis-up:
 redis-down:
 	docker rm -f chat-rooms-redis
 
+# Linter and formatter
 go-fmt:
 	 gofumpt -l -w .
 
 go-lint:
 	golangci-lint run ./...
 
+# Git hooks
 before-push:
 	go mod tidy && \
 	gofumpt -l -w . && \

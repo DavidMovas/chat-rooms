@@ -32,7 +32,7 @@ func NewChatServiceClient(cc grpc.ClientConnInterface) ChatServiceClient {
 
 func (c *chatServiceClient) CreateRoom(ctx context.Context, in *CreateRoomRequest, opts ...grpc.CallOption) (*CreateRoomResponse, error) {
 	out := new(CreateRoomResponse)
-	err := c.cc.Invoke(ctx, "/chat.v2.ChatService/CreateRoom", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/chat.v3.ChatService/CreateRoom", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -40,7 +40,7 @@ func (c *chatServiceClient) CreateRoom(ctx context.Context, in *CreateRoomReques
 }
 
 func (c *chatServiceClient) Connect(ctx context.Context, opts ...grpc.CallOption) (ChatService_ConnectClient, error) {
-	stream, err := c.cc.NewStream(ctx, &ChatService_ServiceDesc.Streams[0], "/chat.v2.ChatService/Connect", opts...)
+	stream, err := c.cc.NewStream(ctx, &ChatService_ServiceDesc.Streams[0], "/chat.v3.ChatService/Connect", opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -112,7 +112,7 @@ func _ChatService_CreateRoom_Handler(srv interface{}, ctx context.Context, dec f
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/chat.v2.ChatService/CreateRoom",
+		FullMethod: "/chat.v3.ChatService/CreateRoom",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(ChatServiceServer).CreateRoom(ctx, req.(*CreateRoomRequest))
@@ -150,7 +150,7 @@ func (x *chatServiceConnectServer) Recv() (*ConnectRequest, error) {
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
 var ChatService_ServiceDesc = grpc.ServiceDesc{
-	ServiceName: "chat.v2.ChatService",
+	ServiceName: "chat.v3.ChatService",
 	HandlerType: (*ChatServiceServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{

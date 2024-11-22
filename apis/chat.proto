@@ -1,6 +1,6 @@
 syntax = "proto3";
 
-package chat.v2;
+package chat.v3;
 
 option go_package = "./chat";
 
@@ -29,7 +29,7 @@ message ConnectRequest {
   message ConnectRoom {
     string room_id = 1;
     string user_id = 2;
-    string last_read_message_id = 3;
+    int64 last_read_message_number = 3;
   }
 
   message SendMessage {
@@ -45,7 +45,7 @@ message ConnectResponse {
 }
 
 message Message {
-  string id = 1;
+  int64 number = 1;
   string user_id = 2;
   string room_id = 3;
   string text = 4;
