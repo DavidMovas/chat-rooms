@@ -4,10 +4,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"golang.org/x/sync/errgroup"
 	"math/rand"
 	"sync"
 	"time"
+
+	"golang.org/x/sync/errgroup"
 
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
