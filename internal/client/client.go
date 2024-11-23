@@ -4,12 +4,13 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
 	"io"
 	"math/rand"
 	"sync"
 	"time"
+
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 
 	"github.com/DavidMovas/chat-rooms/apis/chat"
 	"github.com/DavidMovas/chat-rooms/internal/config"
@@ -57,7 +58,7 @@ func main() {
 		panic(err)
 	}
 
-	//roomID := "rooms:ID:info"
+	// roomID := "rooms:ID:info"
 
 	fmt.Printf("room created: %s\n", roomID)
 

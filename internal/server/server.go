@@ -4,9 +4,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/DavidMovas/chat-rooms/internal/errlog"
 	"log/slog"
 	"net"
+
+	"github.com/DavidMovas/chat-rooms/internal/errlog"
 
 	"github.com/DavidMovas/chat-rooms/apis/chat"
 	"github.com/DavidMovas/chat-rooms/internal/config"

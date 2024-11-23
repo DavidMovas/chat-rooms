@@ -6,8 +6,10 @@ import (
 	"time"
 )
 
-var _ encoding.BinaryUnmarshaler = (*Message)(nil)
-var _ encoding.BinaryMarshaler = (*Message)(nil)
+var (
+	_ encoding.BinaryUnmarshaler = (*Message)(nil)
+	_ encoding.BinaryMarshaler   = (*Message)(nil)
+)
 
 type Message struct {
 	Number    int

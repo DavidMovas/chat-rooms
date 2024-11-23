@@ -5,11 +5,12 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/DavidMovas/chat-rooms/internal/config"
-	"github.com/google/uuid"
 	"sort"
 	"sync"
 	"time"
+
+	"github.com/DavidMovas/chat-rooms/internal/config"
+	"github.com/google/uuid"
 
 	"github.com/redis/go-redis/v9"
 )

@@ -3,11 +3,12 @@ package server
 import (
 	"context"
 	"fmt"
-	"github.com/DavidMovas/chat-rooms/internal/config"
-	"github.com/DavidMovas/chat-rooms/internal/log"
 	"io"
 	"log/slog"
 	"time"
+
+	"github.com/DavidMovas/chat-rooms/internal/config"
+	"github.com/DavidMovas/chat-rooms/internal/log"
 
 	"github.com/DavidMovas/chat-rooms/apis/chat"
 )

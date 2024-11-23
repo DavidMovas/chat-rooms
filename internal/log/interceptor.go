@@ -2,8 +2,9 @@ package log
 
 import (
 	"context"
-	"google.golang.org/grpc"
 	"log/slog"
+
+	"google.golang.org/grpc"
 )
 
 // UnaryServerInterceptor returns a grpc.UnaryServerInterceptor that adds a logger to the context

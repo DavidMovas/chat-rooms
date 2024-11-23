@@ -2,6 +2,7 @@ package errlog
 
 import (
 	"context"
+
 	"github.com/DavidMovas/chat-rooms/internal/log"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
