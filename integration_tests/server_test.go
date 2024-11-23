@@ -102,10 +102,10 @@ func tests(t *testing.T, port int) {
 
 	messagesCount := len(clients) * 100
 	for i := 0; i < messagesCount; i++ {
-		clientM, messageN := i%len(clients), i/len(clients)
+		clientN, messageN := i%len(clients), i/len(clients)
 
-		text := fmt.Sprintf("message-%d-%d", messageN, clientM)
-		sendErr := clients[clientM].SendMessage(text)
+		text := fmt.Sprintf("message-%d-%d", messageN, clientN)
+		sendErr := clients[clientN].SendMessage(text)
 		require.NoError(t, sendErr)
 	}
 	t.Log("all clients sent messages")
@@ -126,6 +126,8 @@ type RoomClient struct {
 
 	messages   []*chat.Message
 	messagesMx sync.RWMutex
+
+	sendMx sync.Mutex
 }
 
 func createClient(t *testing.T, addr string, userID string) *RoomClient {
@@ -157,7 +159,10 @@ func (c *RoomClient) CreateRoom(ctx context.Context, name string) (string, error
 }
 
 func (c *RoomClient) Connect(ctx context.Context, roomID string) error {
-	stream, err := c.client.Connect(ctx)
+	connectCtx, connectCancel := context.WithCancel(context.Background())
+	defer connectCancel()
+
+	stream, err := c.client.Connect(connectCtx)
 	if err != nil {
 		return fmt.Errorf("failed to connect: %w", err)
 	}
@@ -165,8 +170,8 @@ func (c *RoomClient) Connect(ctx context.Context, roomID string) error {
 	err = stream.Send(&chat.ConnectRequest{
 		Payload: &chat.ConnectRequest_ConnectRoom_{
 			ConnectRoom: &chat.ConnectRequest_ConnectRoom{
-				RoomId:                roomID,
 				UserId:                c.userID,
+				RoomId:                roomID,
 				LastReadMessageNumber: -1,
 			},
 		},
@@ -177,6 +182,16 @@ func (c *RoomClient) Connect(ctx context.Context, roomID string) error {
 
 	c.stream = stream
 	close(c.connected)
+
+	closeSend := make(chan error, 1)
+	go func() {
+		<-ctx.Done()
+		c.sendMx.Lock()
+		defer c.sendMx.Unlock()
+		connectCancel()
+
+		closeSend <- stream.CloseSend()
+	}()
 
 	for {
 		if ctx.Err() != nil {
@@ -203,6 +218,9 @@ func (c *RoomClient) WaitConnected() {
 }
 
 func (c *RoomClient) SendMessage(text string) error {
+	c.sendMx.Lock()
+	defer c.sendMx.Unlock()
+
 	return c.stream.Send(&chat.ConnectRequest{
 		Payload: &chat.ConnectRequest_SendMessage_{
 			SendMessage: &chat.ConnectRequest_SendMessage{
@@ -237,5 +255,5 @@ func shortCallCtx() context.Context {
 }
 
 func isCancelled(err error) bool {
-	return errors.Is(err, context.Canceled) || status.Code(err) == codes.Canceled
+	return errors.Is(err, context.Canceled) || status.Code(err) == codes.Canceled || status.Code(err) == codes.DeadlineExceeded
 }
