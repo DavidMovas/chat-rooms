@@ -36,7 +36,7 @@ func NewServer(cfg *config.Config, rdb *redis.Client) (*Server, error) {
 		),
 	)
 
-	s := NewStorage(rdb)
+	s := NewStorage(rdb, cfg)
 	h := NewChatServer(s)
 	chat.RegisterChatServiceServer(grpcServer, h)
 	if cfg.Local {

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/DavidMovas/chat-rooms/internal/config"
 	"github.com/google/uuid"
 	"sort"
 	"sync"
@@ -13,19 +14,17 @@ import (
 	"github.com/redis/go-redis/v9"
 )
 
-const (
-	maxMessages  = 1000
-	maxRetention = time.Hour * 24 * 7
-)
-
 type Store struct {
 	rdb *redis.Client
+
+	maxMessages  int
+	maxRetention time.Duration
 
 	roomHub   map[string]*RoomHub
 	roomHubMx sync.RWMutex
 }
 
-func NewStorage(rdb *redis.Client) *Store {
+func NewStorage(rdb *redis.Client, cfg *config.Config) *Store {
 	return &Store{
 		rdb:     rdb,
 		roomHub: make(map[string]*RoomHub),
@@ -70,8 +69,8 @@ func (s *Store) LoadMessages(ctx context.Context, roomID string) (messages []*Me
 	tx := s.rdb.TxPipeline()
 
 	getMessagesCmd := tx.ZRevRangeByScore(ctx, s.roomMessagesKey(roomID), &redis.ZRangeBy{
-		Count: int64(maxMessages),
-		Min:   fmt.Sprintf("%d", time.Now().Add(-maxRetention).UnixNano()),
+		Count: int64(s.maxMessages),
+		Min:   fmt.Sprintf("%d", time.Now().Add(-s.maxRetention).UnixNano()),
 		Max:   "+inf",
 	})
 
