@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/DavidMovas/chat-rooms/internal/errlog"
 	"log/slog"
 	"net"
 
@@ -24,7 +25,16 @@ type Server struct {
 }
 
 func NewServer(cfg *config.Config, rdb *redis.Client) (*Server, error) {
-	grpcServer := grpc.NewServer()
+	grpcServer := grpc.NewServer(
+		grpc.ChainUnaryInterceptor(
+			log.UnaryServerInterceptor(),
+			errlog.UnaryServerInterceptor(),
+		),
+		grpc.ChainStreamInterceptor(
+			log.StreamServerInterceptor(),
+			errlog.StreamServerInterceptor(),
+		),
+	)
 
 	s := NewStorage(rdb)
 	h := NewChatServer(s)
