@@ -3,6 +3,7 @@ package server
 import (
 	"context"
 	"fmt"
+	"github.com/DavidMovas/chat-rooms/internal/log"
 	"io"
 	"log/slog"
 	"time"
@@ -14,6 +15,8 @@ var _ chat.ChatServiceServer = (*ChatServer)(nil)
 
 type ChatServer struct {
 	store *Store
+
+	isDev bool
 
 	// UnimplementedChatServiceServer must be embedded to have forwarded compatible implementations.
 	chat.UnimplementedChatServiceServer
@@ -31,7 +34,9 @@ func (s *ChatServer) CreateRoom(ctx context.Context, request *chat.CreateRoomReq
 		return nil, fmt.Errorf("failed to create room: %w", err)
 	}
 
-	slog.Info("room created", "room_id", room.ID)
+	if s.isDev {
+		slog.Info("room created", "room_id", room.ID, "owner_id", room.OwnerID, "name", room.Name)
+	}
 
 	return &chat.CreateRoomResponse{
 		RoomId: room.ID,
@@ -51,7 +56,9 @@ func (s *ChatServer) Connect(stream chat.ChatService_ConnectServer) error {
 		return fmt.Errorf("failed to receive message: %w", err)
 	}
 
-	slog.Info("connect", "room_id", connectRoom.ConnectRoom.RoomId, "user_id", connectRoom.ConnectRoom.UserId)
+	if s.isDev {
+		slog.Info("connect", "room_id", connectRoom.ConnectRoom.RoomId, "user_id", connectRoom.ConnectRoom.UserId)
+	}
 
 	hub, err := s.store.GetRoomHub(stream.Context(), connectRoom.ConnectRoom.RoomId)
 	if err != nil {
@@ -76,7 +83,7 @@ func (s *ChatServer) Connect(stream chat.ChatService_ConnectServer) error {
 					Message: mapToAPIMessage(m),
 				},
 			}); err != nil {
-				slog.Error("failed to send message", "error", err)
+				log.FromContext(ctx).Error("failed to send message", "error", err)
 			}
 		}
 	}()

@@ -37,8 +37,8 @@ func main() {
 			panic(err)
 		}
 
-		offset1 := rand.New(rand.NewSource(time.Now().UnixNano())).Intn(1_000)
-		offset2 := rand.New(rand.NewSource(time.Now().UnixNano())).Intn(1_000)
+		offset1 := rand.New(rand.NewSource(time.Now().UnixNano())).Intn(10_000)
+		offset2 := rand.New(rand.NewSource(time.Now().UnixNano())).Intn(10_000)
 		ticker := time.NewTicker(time.Millisecond * time.Duration((offset1+offset2)/2))
 
 		u := &user{
