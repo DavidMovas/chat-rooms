@@ -3,6 +3,7 @@ package server
 import (
 	"context"
 	"fmt"
+	"github.com/DavidMovas/chat-rooms/internal/config"
 	"github.com/DavidMovas/chat-rooms/internal/log"
 	"io"
 	"log/slog"
@@ -16,15 +17,16 @@ var _ chat.ChatServiceServer = (*ChatServer)(nil)
 type ChatServer struct {
 	store *Store
 
-	isDev bool
+	isLocal bool
 
 	// UnimplementedChatServiceServer must be embedded to have forwarded compatible implementations.
 	chat.UnimplementedChatServiceServer
 }
 
-func NewChatServer(store *Store) *ChatServer {
+func NewChatServer(store *Store, cfg *config.Config) *ChatServer {
 	return &ChatServer{
-		store: store,
+		store:   store,
+		isLocal: cfg.Local,
 	}
 }
 
@@ -34,7 +36,7 @@ func (s *ChatServer) CreateRoom(ctx context.Context, request *chat.CreateRoomReq
 		return nil, fmt.Errorf("failed to create room: %w", err)
 	}
 
-	if s.isDev {
+	if s.isLocal {
 		slog.Info("room created", "room_id", room.ID, "owner_id", room.OwnerID, "name", room.Name)
 	}
 
@@ -56,7 +58,7 @@ func (s *ChatServer) Connect(stream chat.ChatService_ConnectServer) error {
 		return fmt.Errorf("failed to receive message: %w", err)
 	}
 
-	if s.isDev {
+	if s.isLocal {
 		slog.Info("connect", "room_id", connectRoom.ConnectRoom.RoomId, "user_id", connectRoom.ConnectRoom.UserId)
 	}
 

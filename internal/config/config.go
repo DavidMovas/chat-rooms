@@ -24,5 +24,5 @@ type Config struct {
 	Port         int           `env:"PORT" envDefault:"55555"`
 	RedisURL     string        `env:"REDIS_URL" envDefault:"localhost:6379"`
 	MaxMessages  int           `env:"MAX_MESSAGES" envDefault:"1000"`
-	MaxRetention time.Duration `env:"MAX_RETENTION" envDefault:"7d"`
+	MaxRetention time.Duration `env:"MAX_RETENTION" envDefault:"168h"`
 }
