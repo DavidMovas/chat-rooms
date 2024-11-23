@@ -5,11 +5,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/google/uuid"
 	"sort"
 	"sync"
 	"time"
 
-	"github.com/google/uuid"
 	"github.com/redis/go-redis/v9"
 )
 
@@ -34,7 +34,7 @@ func NewStorage(rdb *redis.Client) *Store {
 
 func (s *Store) CreateRoom(ctx context.Context, userID string, name string) (*Room, error) {
 	room := &Room{
-		ID:      fmt.Sprintf("room:%s:info", uuid.New().String()),
+		ID:      s.roomKey(),
 		OwnerID: userID,
 		Name:    name,
 	}
@@ -153,12 +153,16 @@ func (s *Store) getOrCreateRoomHub(ctx context.Context, room *Room) (*RoomHub, e
 	return hub, nil
 }
 
+func (s *Store) roomKey() string {
+	return fmt.Sprintf("rooms:%s:data", uuid.New().String())
+}
+
 func (s *Store) roomMessagesKey(roomID string) string {
-	return fmt.Sprintf("room:%s:messages", roomID)
+	return fmt.Sprintf("%s:messages", roomID)
 }
 
 func (s *Store) messageNumberKey(roomID string) string {
-	return fmt.Sprintf("room:%s:last_message_number", roomID)
+	return fmt.Sprintf("%s:last_message_number", roomID)
 }
 
 type Room struct {

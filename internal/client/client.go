@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 	"io"
 	"math/rand"
 	"sync"
@@ -35,10 +37,16 @@ func main() {
 			panic(err)
 		}
 
+		offset1 := rand.New(rand.NewSource(time.Now().UnixNano())).Intn(1_000)
+		offset2 := rand.New(rand.NewSource(time.Now().UnixNano())).Intn(1_000)
+		ticker := time.NewTicker(time.Millisecond * time.Duration((offset1+offset2)/2))
+
 		u := &user{
-			id:     fmt.Sprintf("user-%d", i),
-			name:   fmt.Sprintf("user-%d", i),
-			client: chat.NewChatServiceClient(c),
+			id:       fmt.Sprintf("user-%d", i),
+			name:     fmt.Sprintf("user-%d", i),
+			client:   chat.NewChatServiceClient(c),
+			canselCh: make(chan struct{}),
+			ticker:   ticker,
 		}
 		users = append(users, u)
 	}
@@ -49,7 +57,7 @@ func main() {
 		panic(err)
 	}
 
-	//roomID := "2e6cd80c-2571-421a-b7f8-464a8b5a7452"
+	//roomID := "rooms:ID:info"
 
 	fmt.Printf("room created: %s\n", roomID)
 
@@ -59,9 +67,8 @@ func main() {
 	for _, u := range users {
 		wg.Add(1)
 		u.roomID = roomID
-		var err error
 		go func(u *user) {
-			if err = u.connect(ctx, &wg); err != nil {
+			if err := u.connect(ctx, &wg); err != nil {
 				errs = append(errs, err)
 			}
 
@@ -83,9 +90,9 @@ func main() {
 	for _, u := range users {
 		wg.Add(1)
 		go func(u *user) {
-			var err error
-			if err = u.communicate(ctx, &wg); err != nil {
-				if !errors.Is(err, context.Canceled) || err != io.EOF {
+			if err := u.communicate(ctx, &wg); err != nil {
+				if status.Code(err) != codes.Canceled || err != io.EOF {
+					fmt.Printf("error: %s\n", err)
 					panic(err)
 				}
 			}
@@ -101,6 +108,9 @@ type user struct {
 	id     string
 	name   string
 	roomID string
+
+	canselCh chan struct{}
+
 	client chat.ChatServiceClient
 	stream chat.ChatService_ConnectClient
 
@@ -167,11 +177,10 @@ func (u *user) connect(ctx context.Context, w *sync.WaitGroup) error {
 
 func (u *user) communicate(ctx context.Context, wg *sync.WaitGroup) error {
 	var err error
-	offset := rand.New(rand.NewSource(time.Now().UnixNano())).Intn(5000)
-	u.ticker = time.NewTicker(time.Millisecond * time.Duration(offset))
 
 	defer func() {
 		u.ticker.Stop()
+		close(u.canselCh)
 		wg.Done()
 	}()
 
@@ -204,6 +213,8 @@ func (u *user) sendMessage(ctx context.Context) error {
 			if err != nil {
 				return err
 			}
+		case <-u.canselCh:
+			return nil
 		}
 	}
 }
@@ -220,6 +231,14 @@ func (u *user) receiveMessage(ctx context.Context) error {
 		res, err = u.stream.Recv()
 		if err != nil {
 			return err
+		}
+
+		select {
+		case <-ctx.Done():
+			return nil
+		case <-u.canselCh:
+			return nil
+		default:
 		}
 
 		switch p := res.Payload.(type) {
