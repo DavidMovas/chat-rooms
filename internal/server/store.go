@@ -26,8 +26,10 @@ type Store struct {
 
 func NewStorage(rdb *redis.Client, cfg *config.Config) *Store {
 	return &Store{
-		rdb:     rdb,
-		roomHub: make(map[string]*RoomHub),
+		rdb:          rdb,
+		roomHub:      make(map[string]*RoomHub),
+		maxMessages:  cfg.MaxMessages,
+		maxRetention: cfg.MaxRetention,
 	}
 }
 
