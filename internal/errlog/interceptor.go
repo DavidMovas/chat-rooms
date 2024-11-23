@@ -2,6 +2,7 @@ package errlog
 
 import (
 	"context"
+	"errors"
 
 	"github.com/DavidMovas/chat-rooms/internal/log"
 	"google.golang.org/grpc"
@@ -34,5 +35,5 @@ func StreamServerInterceptor() grpc.StreamServerInterceptor {
 }
 
 func validateError(err error) bool {
-	return status.Code(err) == codes.Canceled || status.Code(err) == codes.DeadlineExceeded
+	return errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) || status.Code(err) == codes.Canceled || status.Code(err) == codes.DeadlineExceeded || status.Code(err) == codes.Unknown
 }

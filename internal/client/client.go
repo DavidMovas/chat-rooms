@@ -4,7 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io"
+	"golang.org/x/sync/errgroup"
 	"math/rand"
 	"sync"
 	"time"
@@ -18,7 +18,11 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 )
 
-const clientsAmount = 15
+const (
+	clientsAmount       = 15
+	communicateDuration = 30
+	offset              = 10_000
+)
 
 func main() {
 	cfg := &config.Config{
@@ -28,7 +32,7 @@ func main() {
 		RedisURL: "localhost:6379",
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*60)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*communicateDuration)
 	defer cancel()
 
 	var users []*user
@@ -38,16 +42,16 @@ func main() {
 			panic(err)
 		}
 
-		offset1 := rand.New(rand.NewSource(time.Now().UnixNano())).Intn(10_000)
-		offset2 := rand.New(rand.NewSource(time.Now().UnixNano())).Intn(10_000)
-		ticker := time.NewTicker(time.Millisecond * time.Duration((offset1+offset2)/2))
+		randOffset := rand.New(rand.NewSource(time.Now().UnixNano())).Intn(offset)
+		ticker := time.NewTicker(time.Millisecond * time.Duration(randOffset))
 
 		u := &user{
-			id:       fmt.Sprintf("user-%d", i),
-			name:     fmt.Sprintf("user-%d", i),
-			client:   chat.NewChatServiceClient(c),
-			canselCh: make(chan struct{}),
-			ticker:   ticker,
+			id:        fmt.Sprintf("user-%d", i),
+			name:      fmt.Sprintf("user-%d", i),
+			client:    chat.NewChatServiceClient(c),
+			connectCh: make(chan struct{}),
+			cancelCh:  make(chan struct{}),
+			ticker:    ticker,
 		}
 		users = append(users, u)
 	}
@@ -58,49 +62,38 @@ func main() {
 		panic(err)
 	}
 
-	// roomID := "rooms:ID:info"
-
 	fmt.Printf("room created: %s\n", roomID)
 
-	var wg sync.WaitGroup
-	var errs []error
+	connections, connectionCtx := errgroup.WithContext(ctx)
+	for _, u := range users {
+		u := u
+		u.roomID = roomID
+		connections.Go(func() error {
+			return u.connect(connectionCtx)
+		})
+	}
 
 	for _, u := range users {
-		wg.Add(1)
-		u.roomID = roomID
-		go func(u *user) {
-			if err := u.connect(ctx, &wg); err != nil {
-				errs = append(errs, err)
-			}
-
-			fmt.Printf("user %s connected\n", u.id)
-		}(u)
+		u.waitUntilConnect()
 	}
 
-	wg.Wait()
 	fmt.Printf("all users connected\n")
-
-	if len(errs) > 0 {
-		panic(errors.Join(errs...))
-	}
-
 	fmt.Printf("communicating\n")
 
-	wg = sync.WaitGroup{}
-
 	for _, u := range users {
-		wg.Add(1)
 		go func(u *user) {
-			if err := u.communicate(ctx, &wg); err != nil {
-				if status.Code(err) != codes.Canceled || err != io.EOF {
-					fmt.Printf("error: %s\n", err)
+			if err := u.sendMessage(ctx); err != nil {
+				if !isCancelled(err) {
+					fmt.Printf("error sending message: %s\n", err.Error())
 					panic(err)
 				}
 			}
 		}(u)
 	}
 
-	wg.Wait()
+	for _, u := range users {
+		u.waitUntilDisconnect()
+	}
 
 	fmt.Println("all users disconnected")
 }
@@ -110,7 +103,10 @@ type user struct {
 	name   string
 	roomID string
 
-	canselCh chan struct{}
+	connectCh chan struct{}
+	cancelCh  chan struct{}
+
+	sendMx sync.Mutex
 
 	client chat.ChatServiceClient
 	stream chat.ChatService_ConnectClient
@@ -130,15 +126,13 @@ func (u *user) createRoom() (string, error) {
 	return res.RoomId, err
 }
 
-func (u *user) connect(ctx context.Context, w *sync.WaitGroup) error {
-	defer w.Done()
+func (u *user) connect(ctx context.Context) error {
 	stream, err := u.client.Connect(ctx)
 	if err != nil {
 		return err
 	}
 
 	u.stream = stream
-
 	err = u.stream.Send(&chat.ConnectRequest{
 		Payload: &chat.ConnectRequest_ConnectRoom_{
 			ConnectRoom: &chat.ConnectRequest_ConnectRoom{
@@ -152,11 +146,19 @@ func (u *user) connect(ctx context.Context, w *sync.WaitGroup) error {
 		return err
 	}
 
-	w.Done()
+	close(u.connectCh)
+
+	closeSend := make(chan error, 1)
+	go func() {
+		<-ctx.Done()
+		u.sendMx.Lock()
+		defer u.sendMx.Unlock()
+		closeSend <- u.stream.CloseSend()
+	}()
 
 	for {
 		if ctx.Err() != nil {
-			return err
+			return ctx.Err()
 		}
 
 		var res *chat.ConnectResponse
@@ -176,33 +178,22 @@ func (u *user) connect(ctx context.Context, w *sync.WaitGroup) error {
 	}
 }
 
-func (u *user) communicate(ctx context.Context, wg *sync.WaitGroup) error {
-	var err error
+func (u *user) waitUntilConnect() {
+	<-u.connectCh
+}
 
-	defer func() {
-		u.ticker.Stop()
-		close(u.canselCh)
-		wg.Done()
-	}()
-
-	go func() {
-		err = u.sendMessage(ctx)
-	}()
-
-	go func() {
-		err = u.receiveMessage(ctx)
-	}()
-
-	<-ctx.Done()
-	return err
+func (u *user) waitUntilDisconnect() {
+	<-u.cancelCh
 }
 
 func (u *user) sendMessage(ctx context.Context) error {
+	defer func() {
+		u.ticker.Stop()
+		close(u.cancelCh)
+	}()
+
 	for {
 		select {
-		case <-ctx.Done():
-			return ctx.Err()
-
 		case <-u.ticker.C:
 			err := u.stream.Send(&chat.ConnectRequest{
 				Payload: &chat.ConnectRequest_SendMessage_{
@@ -214,41 +205,14 @@ func (u *user) sendMessage(ctx context.Context) error {
 			if err != nil {
 				return err
 			}
-		case <-u.canselCh:
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-u.cancelCh:
 			return nil
 		}
 	}
 }
 
-func (u *user) receiveMessage(ctx context.Context) error {
-	var err error
-
-	for {
-		if ctx.Err() != nil {
-			return ctx.Err()
-		}
-
-		var res *chat.ConnectResponse
-		res, err = u.stream.Recv()
-		if err != nil {
-			return err
-		}
-
-		select {
-		case <-ctx.Done():
-			return nil
-		case <-u.canselCh:
-			return nil
-		default:
-		}
-
-		switch p := res.Payload.(type) {
-		case *chat.ConnectResponse_MessageList:
-			for _, m := range p.MessageList.Messages {
-				fmt.Printf("User: %s\n Read from user: %s\n Message: %s\n\n", u.id, m.UserId, m.Text)
-			}
-		case *chat.ConnectResponse_Message:
-			fmt.Printf("User: %s\n Read from user: %s\n Message: %s\n\n", u.id, p.Message.UserId, p.Message.Text)
-		}
-	}
+func isCancelled(err error) bool {
+	return errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) || status.Code(err) == codes.Canceled || status.Code(err) == codes.DeadlineExceeded
 }
